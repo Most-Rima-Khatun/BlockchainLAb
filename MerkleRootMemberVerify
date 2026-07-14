@@ -1,0 +1,98 @@
+import hashlib
+
+def sha256(data):
+    return hashlib.sha256(data.encode()).hexdigest()
+
+
+# Build Merkle Tree
+def build_merkle_tree(transactions):
+
+    tree = []
+
+    level = [sha256(tx) for tx in transactions]
+    tree.append(level)
+
+    while len(level) > 1:
+
+        if len(level) % 2 == 1:
+            level.append(level[-1])
+
+        new_level = []
+
+        for i in range(0, len(level), 2):
+            parent = sha256(level[i] + level[i + 1])
+            new_level.append(parent)
+
+        tree.append(new_level)
+        level = new_level
+
+    return tree
+
+
+# Generate Proof
+def get_merkle_proof(tree, index):
+
+    proof = []
+
+    for level in tree[:-1]:
+
+        if len(level) % 2 == 1:
+            level = level + [level[-1]]
+
+        if index % 2 == 0:
+            sibling = index + 1
+            proof.append(("right", level[sibling]))
+        else:
+            sibling = index - 1
+            proof.append(("left", level[sibling]))
+
+        index //= 2
+
+    return proof
+
+
+# Verify Proof
+def verify_proof(transaction, proof, root):
+
+    current_hash = sha256(transaction)
+
+    for direction, sibling_hash in proof:
+
+        if direction == "left":
+            current_hash = sha256(sibling_hash + current_hash)
+        else:
+            current_hash = sha256(current_hash + sibling_hash)
+
+    return current_hash == root
+
+
+# ------------------------------
+
+transactions = [
+    "Alice",
+    "Bob",
+    "Charlie",
+    "David"
+]
+
+tree = build_merkle_tree(transactions)
+
+root = tree[-1][0]
+
+print("Merkle Root:")
+print(root)
+
+# Bob is at index 1
+proof = get_merkle_proof(tree, 1)
+
+print("\nProof List")
+
+for p in proof:
+    print(p)
+
+print()
+
+if verify_proof("Bob", proof, root):
+    print("Membership Verified")
+else:
+    print("Verification Failed")
